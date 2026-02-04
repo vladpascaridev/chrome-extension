@@ -1,6 +1,6 @@
 # ChatGPT Email Monitor Extension
 
-A browser extension that monitors ChatGPT usage and automatically detects, anonymizes, and logs email addresses in prompts to protect user privacy.
+A Chrome extension that monitors ChatGPT prompts and automatically detects, anonymizes, and logs email addresses to protect user privacy.
 
 ## Features
 
@@ -13,18 +13,17 @@ A browser extension that monitors ChatGPT usage and automatically detects, anony
 
 ### User Interface
 
-- **React/TypeScript**: Modern, responsive UI built with React
+- **React/TypeScript**: Modern, responsive UI built with React and Tailwind CSS
 - **Two-Tab Interface**:
   - **Issues Found**: Displays the most recent email detections
   - **History**: Shows complete history of all detections with expandable details
-- **Context API**: State management using React Context API
-- **Polished Design**: Custom CSS with gradient themes and smooth animations
+- **React Query**: Data fetching and caching with automatic background refresh
+- **Polished Design**: Tailwind CSS with shadcn/ui components
 
 ### Advanced Features
 
 - **24-Hour Dismiss System**: Dismiss individual emails for 24 hours to prevent repeated alerts
 - **Visual Indicators**: Shows dismissed status and remaining time for each email
-- **Statistics Dashboard**: Displays total detections and email counts
 - **Cross-Browser Support**: Compatible with Chrome, Edge, and other Chromium-based browsers
 
 ## Architecture
@@ -34,19 +33,28 @@ A browser extension that monitors ChatGPT usage and automatically detects, anony
 1. **Service Worker** (`src/background/service-worker.ts`)
    - Handles message passing between content script and popup
    - Manages browser storage operations
-   - Implements dismiss system with expiration logic
+   - Implements dismiss system with 24-hour expiration
+   - Auto-cleanup of expired dismissals every hour
 
 2. **Content Script** (`src/content/content-script.ts`)
-   - Intercepts fetch requests to ChatGPT API
-   - Scans request payloads for email addresses
-   - Anonymizes detected emails before sending
-   - Communicates with service worker
+   - Intercepts Enter key and send button clicks
+   - Scans prompt text for email addresses
+   - Blocks send, checks dismissed status, then anonymizes or allows
 
-3. **React UI** (`src/popup/`)
+3. **React Popup UI** (`src/popup/`)
    - Main App component with tab navigation
    - IssuesFound component for latest detections
    - History component with expandable issue list
-   - Context API for state management
+   - React Query hooks for data fetching
+
+### Data Flow
+
+```
+User types email → Tries to send → Content script intercepts (sync block)
+    → Service worker checks dismissed list → Returns non-dismissed emails
+    → If any: anonymize text, show alert, log to history
+    → If all dismissed: programmatically trigger send
+```
 
 ## Installation
 
@@ -114,6 +122,7 @@ A browser extension that monitors ChatGPT usage and automatically detects, anony
 
 5. **Clear History**
    - Click "Clear History" button in the History tab to remove all records
+   - This also clears all dismissed emails
 
 ## Technical Details
 
@@ -159,7 +168,6 @@ A browser extension that monitors ChatGPT usage and automatically detects, anony
 chrome-extension/
 ├── public/
 │   ├── manifest.json
-│   ├── popup.html
 │   └── icons/
 ├── src/
 │   ├── background/
@@ -171,15 +179,21 @@ chrome-extension/
 │   │   ├── index.tsx
 │   │   ├── styles.css
 │   │   └── components/
-│   │       ├── IssuesFound.tsx
-│   │       └── History.tsx
-│   ├── context/
-│   │   └── EmailContext.tsx
-│   ├── types/
-│   │   └── index.ts
-│   └── utils/
-│       └── browser-compat.ts
-├── webpack.config.js
+│   │       ├── issues-found.tsx
+│   │       └── history.tsx
+│   ├── components/ui/        # shadcn/ui components
+│   ├── hooks/
+│   │   └── useEmailQueries.ts
+│   ├── lib/
+│   │   ├── api.ts
+│   │   ├── query-client.ts
+│   │   ├── persister.ts
+│   │   └── utils.ts
+│   └── types/
+│       └── index.ts
+├── popup.html
+├── vite.config.ts
+├── tailwind.config.js
 ├── tsconfig.json
 └── package.json
 ```
@@ -193,12 +207,13 @@ chrome-extension/
 ### Key Technologies
 
 - **TypeScript**: Type-safe development
-- **React 19**: Latest React version with improved features
-- **Vite**: Fast, modern build tool with HMR
+- **React 19**: Latest React version
+- **Vite**: Fast build tool with HMR
 - **CRXJS**: Vite plugin for Chrome Extension development
+- **React Query**: Server state management with caching and background refresh
+- **Tailwind CSS**: Utility-first CSS framework
+- **shadcn/ui**: Accessible component primitives
 - **Chrome Extension API**: Manifest V3
-- **Context API**: State management
-- **Absolute Imports**: Clean import paths with `@/` aliases
 
 ## Browser Compatibility
 
@@ -206,7 +221,6 @@ chrome-extension/
 
 - ✅ Google Chrome (v88+)
 - ✅ Microsoft Edge (v88+)
-- ✅ Brave Browser
 - ✅ Any Chromium-based browser
 
 ### Firefox Support
@@ -242,16 +256,6 @@ The extension can be adapted for Firefox by:
 
 - Open DevTools > Application > Storage
 - Clear extension storage and reload
-
-## Future Enhancements
-
-- [ ] Configurable regex patterns
-- [ ] Export/import detection history
-- [ ] Custom dismiss durations
-- [ ] Phone number detection
-- [ ] Credit card number detection
-- [ ] Dark mode support
-- [ ] Multi-language support
 
 ## License
 
